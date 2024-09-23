@@ -8,7 +8,7 @@ CFLAGS = -Wall -g
 LDFLAGS = -lncurses
 
 # Hedef dosya
-TARGET_DIR = out
+TARGET_DIR = ../bin
 TARGET = $(TARGET_DIR)/main
 
 # Kaynak dosyalar

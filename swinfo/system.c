@@ -34,8 +34,12 @@ void displaySystemInfo() {
     WINDOW *pad = newpad(padHeight, padWidth);
 
     int line = 0;
-    mvwprintw(pad, line++, 1, "System Information: ");
+    mvwprintw(pad, line++, 1, "System Information ");
     line++;
+
+    mvwprintw(pad, line++, 1, "Distro Information: ");
+    line++;
+    
 
     FILE* systemPipe = popen("cat /etc/os-release | grep -w \"NAME\"", "r");
     if (systemPipe) {
@@ -156,6 +160,72 @@ void displaySystemInfo() {
             } else if (strstr(osName, "Arch") != NULL) {
                 mvwprintw(pad, line++, 1, "Packages: %d (pacman), %d (flatpak), %d (snap)", pacmanCount, flatpakCount, snapCount);
             }
+        }
+
+        line++;
+        mvwprintw(pad, line++, 1, "Network Information:");
+        line++;
+
+        FILE* adapterPipe = popen("ip link show | grep \"state UP\" | awk '{print $2}' | sed 's/:$//'", "r");
+        if (adapterPipe) {
+            char adapter[256] = "";
+            fgets(adapter, sizeof(adapter), adapterPipe);
+            adapter[strcspn(adapter, "\n")] = 0;
+
+            char nmcliCommand[512];
+            snprintf(nmcliCommand, sizeof(nmcliCommand), "nmcli device show %s", adapter);
+            FILE* nmcliPipe = popen(nmcliCommand, "r");
+            if (nmcliPipe) {
+                char nmcliBuffer[256];
+                char device[256] = "";
+                char type[256] = "";
+                char hwaddr[256] = "";
+                char state[256] = "";
+                char connection[256] = "";
+                char ipAddress[256] = "";
+
+                // nmcli çıktısını okuma ve ayrıştırma
+                while (fgets(nmcliBuffer, sizeof(nmcliBuffer), nmcliPipe)) {
+                    nmcliBuffer[strcspn(nmcliBuffer, "\n")] = 0; // Satırdaki yeni satır karakterini kaldır
+
+                    // İlgili bilgileri ayrıştır
+                    if (strncmp(nmcliBuffer, "GENERAL.DEVICE:", 15) == 0) {
+                        sscanf(nmcliBuffer, "GENERAL.DEVICE: %s", device);
+                    } else if (strncmp(nmcliBuffer, "GENERAL.TYPE:", 13) == 0) {
+                        sscanf(nmcliBuffer, "GENERAL.TYPE: %s", type);
+                    } else if (strncmp(nmcliBuffer, "GENERAL.HWADDR:", 15) == 0) {
+                        sscanf(nmcliBuffer, "GENERAL.HWADDR: %s", hwaddr);
+                    } else if (strncmp(nmcliBuffer, "GENERAL.STATE:", 14) == 0) {
+                        sscanf(nmcliBuffer, "GENERAL.STATE: %s", state);
+                    } else if (strncmp(nmcliBuffer, "GENERAL.CONNECTION:", 19) == 0) {
+                        sscanf(nmcliBuffer, "GENERAL.CONNECTION: %[^,]", connection);
+                    } else if (strncmp(nmcliBuffer, "IP4.ADDRESS[1]:", 15) == 0) {
+                        sscanf(nmcliBuffer, "IP4.ADDRESS[1]: %[^/]", ipAddress);
+                    }
+                }
+                pclose(nmcliPipe);
+
+                if (strcmp(type, "wifi") == 0) {
+                    mvwprintw(pad, line++, 1, "Device: %s", device[0] ? device : "N/A");
+                    mvwprintw(pad, line++, 1, "Adaptor Type: %s", type[0] ? type : "N/A");
+                    mvwprintw(pad, line++, 1, "MAC Address: %s", hwaddr[0] ? hwaddr : "N/A");
+                    mvwprintw(pad, line++, 1, "Connection: %s", connection[0] ? connection : "N/A");
+                    mvwprintw(pad, line++, 1, "Quality: %s", state[0] ? state : "N/A");
+                    mvwprintw(pad, line++, 1, "IP Address: %s", ipAddress[0] ? ipAddress : "N/A");
+                } else if (strcmp(type, "ethernet") == 0) {
+                    mvwprintw(pad, line++, 1, "Device: %s", device[0] ? device : "N/A");
+                    mvwprintw(pad, line++, 1, "Type: %s", type[0] ? type : "N/A");
+                    mvwprintw(pad, line++, 1, "MAC Address: %s", hwaddr[0] ? hwaddr : "N/A");
+                    mvwprintw(pad, line++, 1, "Quality: %s", state[0] ? state : "N/A");
+                } else {
+                    mvwprintw(pad, line++, 1, "Unknown device type: %s", type);
+                }
+            } else {
+                mvwprintw(pad, line++, 1, "Failed to retrieve nmcli information for adapter");
+            }
+            pclose(adapterPipe);
+        } else {
+            mvwprintw(pad, line++, 1, "Failed to retrieve adapter information");
         }
 
         pclose(systemPipe);

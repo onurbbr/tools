@@ -34,7 +34,7 @@ void displaySystemInfo() {
     WINDOW *pad = newpad(padHeight, padWidth);
 
     int line = 0;
-    mvwprintw(pad, line++, 1, "User Information: ");
+    mvwprintw(pad, line++, 1, "System Information: ");
     line++;
 
     FILE* systemPipe = popen("cat /etc/os-release | grep -w \"NAME\"", "r");
@@ -58,10 +58,107 @@ void displaySystemInfo() {
                 }
             }
         }
-        pclose(systemPipe);
 
         // Print system information within the pad
         mvwprintw(pad, line++, 1, "OS Name: %s", osName);
+
+        int rpmCount = 0;
+        int debCount = 0;
+        int pacmanCount = 0;
+        int flatpakCount = 0;
+        int snapCount = 0;
+
+        if (strstr(osName, "Fedora") != NULL || strstr(osName, "Red Hat") != NULL || strstr(osName, "openSUSE") != NULL) {
+            FILE* rpmPipe = popen("rpm -qa | wc -l", "r");
+            if (rpmPipe) {
+                char rpmBuffer[256];
+
+                if (fgets(rpmBuffer, sizeof(rpmBuffer), rpmPipe)) {
+                    rpmCount = atoi(rpmBuffer);
+                }
+                pclose(rpmPipe);
+            }
+        } else if (strstr(osName, "Debian") != NULL || strstr(osName, "Ubuntu") != NULL) {
+            FILE* debPipe = popen("dpkg -l | wc -l", "r");
+            if (debPipe) {
+                char debBuffer[256];
+
+                if (fgets(debBuffer, sizeof(debBuffer), debPipe)) {
+                    debCount = atoi(debBuffer);
+                }
+                pclose(debPipe);
+            }
+        } else if (strstr(osName, "Arch") != NULL) {
+            FILE* pacmanPipe = popen("pacman -Q | wc -l", "r");
+            if (pacmanPipe) {
+                char pacmanBuffer[256];
+
+                if (fgets(pacmanBuffer, sizeof(pacmanBuffer), pacmanPipe)) {
+                    pacmanCount = atoi(pacmanBuffer);
+                }
+                pclose(pacmanPipe);
+            }
+        }
+
+        if (system("/bin/sh -c '[ -f /usr/bin/flatpak ]'") == 0) {
+            FILE* flatpakPipe = popen("flatpak list --app | wc -l", "r");
+            if (flatpakPipe) {
+                char flatpakBuffer[256];
+
+                if (fgets(flatpakBuffer, sizeof(flatpakBuffer), flatpakPipe)) {
+                    flatpakCount = atoi(flatpakBuffer);
+                }
+                pclose(flatpakPipe);
+            }
+        }
+
+        if (system("/bin/sh -c '[ -f /usr/bin/snap ]'") == 0) {
+            FILE* snapPipe = popen("snap list | awk '{print $1}' | tail -n +2 | wc -l", "r");
+            if (snapPipe) {
+                char snapBuffer[256];
+
+                if (fgets(snapBuffer, sizeof(snapBuffer), snapPipe)) {
+                    snapCount = atoi(snapBuffer);
+                }
+                pclose(snapPipe);
+            }
+        }
+
+        if (flatpakCount == 0 && snapCount == 0) {
+            if (strstr(osName, "Fedora") != NULL || strstr(osName, "Red Hat") != NULL || strstr(osName, "openSUSE") != NULL) {
+                mvwprintw(pad, line++, 1, "Packages: %d (rpm)", rpmCount);
+            } else if (strstr(osName, "Debian") != NULL || strstr(osName, "Ubuntu") != NULL) {
+                mvwprintw(pad, line++, 1, "Packages: %d (dpkg)", debCount);
+            } else if (strstr(osName, "Arch") != NULL) {
+                mvwprintw(pad, line++, 1, "Packages: %d (pacman)", pacmanCount);
+            }
+        } else if (flatpakCount == 0) {
+            if (strstr(osName, "Fedora") != NULL || strstr(osName, "Red Hat") != NULL || strstr(osName, "openSUSE") != NULL) {
+                mvwprintw(pad, line++, 1, "Packages: %d (rpm), %d (snap)", rpmCount, snapCount);
+            } else if (strstr(osName, "Debian") != NULL || strstr(osName, "Ubuntu") != NULL) {
+                mvwprintw(pad, line++, 1, "Packages: %d (dpkg), %d (snap)", debCount, snapCount);
+            } else if (strstr(osName, "Arch") != NULL) {
+                mvwprintw(pad, line++, 1, "Packages: %d (pacman), %d (snap)", pacmanCount, snapCount);
+            }
+        } else if (snapCount == 0) {
+            if (strstr(osName, "Fedora") != NULL || strstr(osName, "Red Hat") != NULL || strstr(osName, "openSUSE") != NULL) {
+                mvwprintw(pad, line++, 1, "Packages: %d (rpm), %d (flatpak)", rpmCount, flatpakCount);
+            } else if (strstr(osName, "Debian") != NULL || strstr(osName, "Ubuntu") != NULL) {
+                mvwprintw(pad, line++, 1, "Packages: %d (dpkg), %d (flatpak)", debCount, flatpakCount);
+            } else if (strstr(osName, "Arch") != NULL) {
+                mvwprintw(pad, line++, 1, "Packages: %d (pacman), %d (flatpak)", pacmanCount, flatpakCount);
+            }
+        } else {
+            if (strstr(osName, "Fedora") != NULL || strstr(osName, "Red Hat") != NULL || strstr(osName, "openSUSE") != NULL) {
+                mvwprintw(pad, line++, 1, "Packages: %d (rpm), %d (flatpak), %d (snap)", rpmCount, flatpakCount, snapCount);
+            } else if (strstr(osName, "Debian") != NULL || strstr(osName, "Ubuntu") != NULL) {
+                mvwprintw(pad, line++, 1, "Packages: %d (dpkg), %d (flatpak), %d (snap)", debCount, flatpakCount, snapCount);
+            } else if (strstr(osName, "Arch") != NULL) {
+                mvwprintw(pad, line++, 1, "Packages: %d (pacman), %d (flatpak), %d (snap)", pacmanCount, flatpakCount, snapCount);
+            }
+        }
+
+        pclose(systemPipe);
     } else {
         mvwprintw(pad, line++, 1, "Failed to retrieve system information");
     }

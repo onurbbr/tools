@@ -246,92 +246,104 @@ void displaySystemInfo()
     line++;
 
     FILE *networkPipe = popen(
-        "ip link show | grep \"state UP\" | awk '{print $2}' | sed 's/:$//'",
-        "r");
+        "ip link show | grep \"state UP\" | awk '{print $2}' | sed 's/:$//'", "r");
     if (networkPipe)
     {
       char adapter[256] = "";
       fgets(adapter, sizeof(adapter), networkPipe);
       adapter[strcspn(adapter, "\n")] = 0;
 
-      char nmcliCommand[512];
-      snprintf(nmcliCommand, sizeof(nmcliCommand), "nmcli device show %s",
-               adapter);
-      FILE *nmcliPipe = popen(nmcliCommand, "r");
-      if (nmcliPipe)
+      // nmcli kontrolü yapılıyor
+      FILE *nmcliCheck = popen("which nmcli > /dev/null 2>&1", "r");
+      if (nmcliCheck)
       {
-        char nmcliBuffer[256];
-        char device[256] = "";
-        char type[256] = "";
-        char hwaddr[256] = "";
-        char state[256] = "";
-        char connection[256] = "";
-        char ipAddress[256] = "";
+        int nmcliExists = pclose(nmcliCheck); // nmcli komutunun var olup olmadığını kontrol eder
 
-        // nmcli çıktısını okuma ve ayrıştırma
-        while (fgets(nmcliBuffer, sizeof(nmcliBuffer), nmcliPipe))
+        if (nmcliExists == 0) // nmcli mevcutsa
         {
-          nmcliBuffer[strcspn(nmcliBuffer, "\n")] =
-              0; // Satırdaki yeni satır karakterini kaldır
+          char nmcliCommand[512];
+          snprintf(nmcliCommand, sizeof(nmcliCommand), "nmcli device show %s", adapter);
+          FILE *nmcliPipe = popen(nmcliCommand, "r");
 
-          // İlgili bilgileri ayrıştır
-          if (strncmp(nmcliBuffer, "GENERAL.DEVICE:", 15) == 0)
+          if (nmcliPipe)
           {
-            sscanf(nmcliBuffer, "GENERAL.DEVICE: %s", device);
-          }
-          else if (strncmp(nmcliBuffer, "GENERAL.TYPE:", 13) == 0)
-          {
-            sscanf(nmcliBuffer, "GENERAL.TYPE: %s", type);
-          }
-          else if (strncmp(nmcliBuffer, "GENERAL.HWADDR:", 15) == 0)
-          {
-            sscanf(nmcliBuffer, "GENERAL.HWADDR: %s", hwaddr);
-          }
-          else if (strncmp(nmcliBuffer, "GENERAL.STATE:", 14) == 0)
-          {
-            sscanf(nmcliBuffer, "GENERAL.STATE: %s", state);
-          }
-          else if (strncmp(nmcliBuffer, "GENERAL.CONNECTION:", 19) == 0)
-          {
-            sscanf(nmcliBuffer, "GENERAL.CONNECTION: %[^,]", connection);
-          }
-          else if (strncmp(nmcliBuffer, "IP4.ADDRESS[1]:", 15) == 0)
-          {
-            sscanf(nmcliBuffer, "IP4.ADDRESS[1]: %[^/]", ipAddress);
-          }
-        }
-        pclose(nmcliPipe);
+            char nmcliBuffer[256];
+            char device[256] = "";
+            char type[256] = "";
+            char hwaddr[256] = "";
+            char state[256] = "";
+            char connection[256] = "";
+            char ipAddress[256] = "";
 
-        if (strcmp(type, "wifi") == 0)
-        {
-          mvwprintw(pad, line++, 1, "Device: %s", device[0] ? device : "N/A");
-          mvwprintw(pad, line++, 1, "Adaptor Type: %s", type[0] ? type : "N/A");
-          mvwprintw(pad, line++, 1, "MAC Address: %s",
-                    hwaddr[0] ? hwaddr : "N/A");
-          mvwprintw(pad, line++, 1, "Connection: %s",
-                    connection[0] ? connection : "N/A");
-          mvwprintw(pad, line++, 1, "Quality: %s", state[0] ? state : "N/A");
-          mvwprintw(pad, line++, 1, "IP Address: %s",
-                    ipAddress[0] ? ipAddress : "N/A");
-        }
-        else if (strcmp(type, "ethernet") == 0)
-        {
-          mvwprintw(pad, line++, 1, "Device: %s", device[0] ? device : "N/A");
-          mvwprintw(pad, line++, 1, "Type: %s", type[0] ? type : "N/A");
-          mvwprintw(pad, line++, 1, "MAC Address: %s",
-                    hwaddr[0] ? hwaddr : "N/A");
-          mvwprintw(pad, line++, 1, "Quality: %s", state[0] ? state : "N/A");
+            // nmcli çıktısını okuma ve ayrıştırma
+            while (fgets(nmcliBuffer, sizeof(nmcliBuffer), nmcliPipe))
+            {
+              nmcliBuffer[strcspn(nmcliBuffer, "\n")] = 0; // Satırdaki yeni satır karakterini kaldır
+
+              // İlgili bilgileri ayrıştır
+              if (strncmp(nmcliBuffer, "GENERAL.DEVICE:", 15) == 0)
+              {
+                sscanf(nmcliBuffer, "GENERAL.DEVICE: %s", device);
+              }
+              else if (strncmp(nmcliBuffer, "GENERAL.TYPE:", 13) == 0)
+              {
+                sscanf(nmcliBuffer, "GENERAL.TYPE: %s", type);
+              }
+              else if (strncmp(nmcliBuffer, "GENERAL.HWADDR:", 15) == 0)
+              {
+                sscanf(nmcliBuffer, "GENERAL.HWADDR: %s", hwaddr);
+              }
+              else if (strncmp(nmcliBuffer, "GENERAL.STATE:", 14) == 0)
+              {
+                sscanf(nmcliBuffer, "GENERAL.STATE: %s", state);
+              }
+              else if (strncmp(nmcliBuffer, "GENERAL.CONNECTION:", 19) == 0)
+              {
+                sscanf(nmcliBuffer, "GENERAL.CONNECTION: %[^,]", connection);
+              }
+              else if (strncmp(nmcliBuffer, "IP4.ADDRESS[1]:", 15) == 0)
+              {
+                sscanf(nmcliBuffer, "IP4.ADDRESS[1]: %[^/]", ipAddress);
+              }
+            }
+            pclose(nmcliPipe);
+
+            if (strcmp(type, "wifi") == 0)
+            {
+              mvwprintw(pad, line++, 1, "Device: %s", device[0] ? device : "N/A");
+              mvwprintw(pad, line++, 1, "Adaptor Type: %s", type[0] ? type : "N/A");
+              mvwprintw(pad, line++, 1, "MAC Address: %s", hwaddr[0] ? hwaddr : "N/A");
+              mvwprintw(pad, line++, 1, "Connection: %s", connection[0] ? connection : "N/A");
+              mvwprintw(pad, line++, 1, "Quality: %s", state[0] ? state : "N/A");
+              mvwprintw(pad, line++, 1, "IP Address: %s", ipAddress[0] ? ipAddress : "N/A");
+            }
+            else if (strcmp(type, "ethernet") == 0)
+            {
+              mvwprintw(pad, line++, 1, "Device: %s", device[0] ? device : "N/A");
+              mvwprintw(pad, line++, 1, "Type: %s", type[0] ? type : "N/A");
+              mvwprintw(pad, line++, 1, "MAC Address: %s", hwaddr[0] ? hwaddr : "N/A");
+              mvwprintw(pad, line++, 1, "Quality: %s", state[0] ? state : "N/A");
+            }
+            else
+            {
+              mvwprintw(pad, line++, 1, "Unknown device type: %s", type);
+            }
+          }
+          else
+          {
+            mvwprintw(pad, line++, 1, "Failed to retrieve nmcli information for adapter");
+          }
         }
         else
         {
-          mvwprintw(pad, line++, 1, "Unknown device type: %s", type);
+          mvwprintw(pad, line++, 1, "nmcli is not installed on this system");
         }
       }
       else
       {
-        mvwprintw(pad, line++, 1,
-                  "Failed to retrieve nmcli information for adapter");
+        mvwprintw(pad, line++, 1, "Failed to check nmcli availability");
       }
+
       pclose(networkPipe);
     }
     else
@@ -343,13 +355,7 @@ void displaySystemInfo()
     mvwprintw(pad, line++, 1, "Security Information:");
     line++;
 
-    FILE *securityPipe =
-        popen("sh -c 'if sestatus | grep \"SELinux status:\" | awk \"{print "
-              "$2}\" | grep -q \"enabled\"; then echo \"selinux\"; elif [ -f "
-              "/sys/module/apparmor/parameters/enabled ] && [ \"$(cat "
-              "/sys/module/apparmor/parameters/enabled)\" == \"Y\" ]; then "
-              "echo \"apparmor\"; else echo \"none\"; fi'",
-              "r");
+    FILE *securityPipe = popen("sh -c 'if which sestatus > /dev/null 2>&1; then if sestatus | grep \"SELinux status:\" | awk \"{print $2}\" | grep -q \"enabled\"; then echo \"selinux\"; else echo \"none\"; fi; elif [ -f /sys/module/apparmor/parameters/enabled ] && [ \"$(cat /sys/module/apparmor/parameters/enabled)\" == \"Y\" ]; then echo \"apparmor\"; else echo \"none\"; fi'", "r");
 
     if (securityPipe)
     {

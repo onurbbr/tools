@@ -355,7 +355,7 @@ void displaySystemInfo()
     mvwprintw(pad, line++, 1, "Security Information:");
     line++;
 
-    FILE *securityPipe = popen("sh -c 'if which sestatus > /dev/null 2>&1; then if sestatus | grep \"SELinux status:\" | awk \"{print $2}\" | grep -q \"enabled\"; then echo \"selinux\"; else echo \"none\"; fi; elif [ -f /sys/module/apparmor/parameters/enabled ] && [ \"$(cat /sys/module/apparmor/parameters/enabled)\" == \"Y\" ]; then echo \"apparmor\"; else echo \"none\"; fi'", "r");
+    FILE *securityPipe = popen("sh -c 'if which sestatus > /dev/null 2>&1; then if sestatus | grep \"SELinux status:\" | awk \"{print $2}\" | grep -q \"enabled\"; then echo \"selinux\"; else echo \"none\"; fi; elif [ -f /sys/module/apparmor/parameters/enabled ] && [ \"$(cat /sys/module/apparmor/parameters/enabled)\" = \"Y\" ]; then echo \"apparmor\"; else echo \"none\"; fi'", "r");
 
     if (securityPipe)
     {

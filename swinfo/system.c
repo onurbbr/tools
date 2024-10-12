@@ -397,10 +397,10 @@ void displaySystemInfo()
       }
       else if (strcmp(securityBuffer, "apparmor") == 0)
       {
-        mvwprintw(pad, line++, 1, "Security: AppArmor is enabled");
+        mvwprintw(pad, line++, 1, "Security Module: %s", securityBuffer);
       }
       else
-        mvwprintw(pad, line++, 1, "Security: None");
+        mvwprintw(pad, line++, 1, "Security Module: None");
     }
     else
       mvwprintw(pad, line++, 1, "Failed to check security stack");
